@@ -1,12 +1,12 @@
 import os
 import streamlit as st
 from deepgram import Deepgram
+import asyncio
 import dotenv
 
-dotenv.load_dotenv()
-
-# Initialize Deepgram client
-deepgram_client = Deepgram(os.getenv('DEEPGRAM_API_KEY'))
+# Initialize Deepgram client using Streamlit secrets
+deepgram_api_key = st.secrets["DEEPGRAM_API_KEY"]
+deepgram_client = Deepgram(deepgram_api_key)
 
 # Streamlit layout
 st.title("Audio Transcription with Deepgram")
