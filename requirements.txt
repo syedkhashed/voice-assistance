@@ -1,4 +1,8 @@
 streamlit 
-deepgram-sdk 
+
 python-dotenv 
+deepgram-sdk==3.0.0
+sounddevice
+websockets
+numpy
 
