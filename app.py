@@ -24,7 +24,6 @@ async def transcribe_audio():
         async with websockets.connect(
             f'wss://api.deepgram.com/v1/listen?access_token={DEEPGRAM_API_KEY}',
         ) as ws:
-            # Notify that we are connected
             status_text.text("Connected to Deepgram WebSocket")
             
             while True:
@@ -34,7 +33,6 @@ async def transcribe_audio():
                 if 'channel' in data and 'alternatives' in data['channel']:
                     transcript = data['channel']['alternatives'][0]['transcript']
                     if transcript:
-                        # Update the transcript area with the new transcript
                         current_transcript = transcript_area.text if transcript_area.text else ""
                         transcript_area.text(f"{current_transcript} {transcript}")
     except Exception as e:
