@@ -6,3 +6,4 @@ deepgram-sdk
 langchain-core
 langchain-groq
 sounddevice
+langchain
