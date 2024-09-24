@@ -20,23 +20,29 @@ stop_button = st.button("Stop Recording")
 
 # WebSocket connection for transcription
 async def transcribe_audio():
-    async with websockets.connect(
-        f'wss://api.deepgram.com/v1/listen?access_token={DEEPGRAM_API_KEY}',
-    ) as ws:
-        # Start sending audio from a stream (placeholder, actual streaming not implemented here)
-        while True:
-            # Receive response
-            response = await ws.recv()
-            data = json.loads(response)
-            if 'channel' in data and 'alternatives' in data['channel']:
-                transcript = data['channel']['alternatives'][0]['transcript']
-                if transcript:
-                    transcript_area.text(transcript_area.text + " " + transcript)
+    try:
+        async with websockets.connect(
+            f'wss://api.deepgram.com/v1/listen?access_token={DEEPGRAM_API_KEY}',
+        ) as ws:
+            # Notify that we are connected
+            status_text.text("Connected to Deepgram WebSocket")
+            
+            while True:
+                response = await ws.recv()
+                data = json.loads(response)
+                
+                if 'channel' in data and 'alternatives' in data['channel']:
+                    transcript = data['channel']['alternatives'][0]['transcript']
+                    if transcript:
+                        # Update the transcript area with the new transcript
+                        current_transcript = transcript_area.text if transcript_area.text else ""
+                        transcript_area.text(f"{current_transcript} {transcript}")
+    except Exception as e:
+        st.error(f"WebSocket error: {e}")
 
 # Handle button clicks
 if start_button:
     status_text.text("Recording...")
-    # Call the transcribe function
     asyncio.run(transcribe_audio())
 
 if stop_button:
