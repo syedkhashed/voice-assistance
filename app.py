@@ -5,7 +5,7 @@ import asyncio
 import dotenv
 
 # Initialize Deepgram client using Streamlit secrets
-deepgram_api_key = st.secrets["DEEPGRAM_API_KEY"]
+deepgram_api_key = st.secrets["general"]["DEEPGRAM_API_KEY"]
 deepgram_client = Deepgram(deepgram_api_key)
 
 # Streamlit layout
