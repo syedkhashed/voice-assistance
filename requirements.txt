@@ -1,4 +1,4 @@
 streamlit 
 deepgram-sdk 
 python-dotenv 
-pyaudio
+
