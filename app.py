@@ -2,7 +2,8 @@ import os
 import streamlit as st
 from deepgram import Deepgram
 import asyncio
-import dotenv
+from dotenv import load_dotenv
+
 
 
 
