@@ -6,13 +6,12 @@ from dotenv import load_dotenv
 
 
 
-
+deepgram_api_key="9c5ccd2db18c95a12574e844e2137dd22d33c3e8"
 # Load environment variables from .env file
-load_dotenv()
-
-# Get the API key from the environment variable
-deepgram_api_key = os.getenv('DEEPGRAM_API_KEY')
-deepgram_client = Deepgram(deepgram_api_key)
+try:    
+    deepgram_client = Deepgram(deepgram_api_key)
+except Exception as e:    
+    st.error(f"Error initializing Deepgram client: {e}")
 
 
 
