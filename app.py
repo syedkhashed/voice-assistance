@@ -4,12 +4,17 @@ from deepgram import Deepgram
 import asyncio
 import dotenv
 
-deepgram_api_key = st.secrets["general"]["DEEPGRAM_API_KEY"]
+
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Get the API key from the environment variable
+deepgram_api_key = os.getenv('DEEPGRAM_API_KEY')
 deepgram_client = Deepgram(deepgram_api_key)
-try:   
-    deepgram_client = Deepgram(deepgram_api_key)
-except Exception as e:    
-    st.error(f"Error initializing Deepgram client: {e}")
+
+
+
 
 # Streamlit layout
 st.title("Audio Transcription with Deepgram")
