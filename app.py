@@ -1,12 +1,9 @@
-import asyncio
 import os
-import shutil
-import subprocess
-import requests
 import time
+import requests
+import subprocess
 import streamlit as st
-from dotenv import load_dotenv
-
+from deepgram import DeepgramClient, LiveTranscriptionEvents, LiveOptions, Microphone
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 from langchain.memory import ConversationBufferMemory
@@ -17,91 +14,32 @@ from langchain.prompts import (
 )
 from langchain.chains import LLMChain
 
-from deepgram import (
-    DeepgramClient,
-    DeepgramClientOptions,
-    LiveTranscriptionEvents,
-    LiveOptions,
-    Microphone,
+# Set your API keys directly
+DEEPGRAM_API_KEY = "9c5ccd2db18c95a12574e844e2137dd22d33c3e8"
+GROQ_API_KEY = "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"
+
+# Initialize Deepgram and Groq clients
+deepgram_client = DeepgramClient(DEEPGRAM_API_KEY)
+llm = ChatGroq(temperature=0, model_name="mixtral-8x7b-32768", groq_api_key=GROQ_API_KEY)
+
+# Memory for conversation history
+memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+
+# Load the system prompt from a file
+with open('system_prompt.txt', 'r') as file:
+    system_prompt = file.read().strip()
+
+prompt = ChatPromptTemplate.from_messages([
+    SystemMessagePromptTemplate.from_template(system_prompt),
+    MessagesPlaceholder(variable_name="chat_history"),
+    HumanMessagePromptTemplate.from_template("{text}")
+])
+
+conversation = LLMChain(
+    llm=llm,
+    prompt=prompt,
+    memory=memory
 )
-
-load_dotenv()
-
-class LanguageModelProcessor:
-    def __init__(self):
-        self.llm = ChatGroq(temperature=0, model_name="mixtral-8x7b-32768", groq_api_key=os.getenv("GROQ_API_KEY"))
-        self.memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
-
-        with open('system_prompt.txt', 'r') as file:
-            system_prompt = file.read().strip()
-
-        self.prompt = ChatPromptTemplate.from_messages([
-            SystemMessagePromptTemplate.from_template(system_prompt),
-            MessagesPlaceholder(variable_name="chat_history"),
-            HumanMessagePromptTemplate.from_template("{text}")
-        ])
-
-        self.conversation = LLMChain(
-            llm=self.llm,
-            prompt=self.prompt,
-            memory=self.memory
-        )
-
-    def process(self, text):
-        self.memory.chat_memory.add_user_message(text)
-        start_time = time.time()
-        response = self.conversation.invoke({"text": text})
-        end_time = time.time()
-        self.memory.chat_memory.add_ai_message(response['text'])
-        elapsed_time = int((end_time - start_time) * 1000)
-        print(f"LLM ({elapsed_time}ms): {response['text']}")
-        return response['text']
-
-class TextToSpeech:
-    DG_API_KEY = os.getenv("DEEPGRAM_API_KEY")
-    MODEL_NAME = "aura-helios-en"
-
-    @staticmethod
-    def is_installed(lib_name: str) -> bool:
-        return shutil.which(lib_name) is not None
-
-    def speak(self, text):
-        if not self.is_installed("ffplay"):
-            raise ValueError("ffplay not found, necessary to stream audio.")
-
-        DEEPGRAM_URL = f"https://api.deepgram.com/v1/speak?model={self.MODEL_NAME}&performance=some&encoding=linear16&sample_rate=24000"
-        headers = {
-            "Authorization": f"Token {self.DG_API_KEY}",
-            "Content-Type": "application/json"
-        }
-        payload = {
-            "text": text
-        }
-
-        player_command = ["ffplay", "-autoexit", "-", "-nodisp"]
-        player_process = subprocess.Popen(
-            player_command,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-
-        start_time = time.time()
-        first_byte_time = None
-
-        with requests.post(DEEPGRAM_URL, stream=True, headers=headers, json=payload) as r:
-            for chunk in r.iter_content(chunk_size=1024):
-                if chunk:
-                    if first_byte_time is None:
-                        first_byte_time = time.time()
-                        ttfb = int((first_byte_time - start_time)*1000)
-                        print(f"TTS Time to First Byte (TTFB): {ttfb}ms\n")
-                    player_process.stdin.write(chunk)
-                    player_process.stdin.flush()
-
-        if player_process.stdin:
-            player_process.stdin.close()
-        player_process.wait()
 
 class TranscriptCollector:
     def __init__(self):
@@ -120,23 +58,20 @@ transcript_collector = TranscriptCollector()
 
 async def get_transcript(callback):
     transcription_complete = asyncio.Event()
-    try:
-        config = DeepgramClientOptions(options={"keepalive": "true"})
-        deepgram: DeepgramClient = DeepgramClient("", config)
 
-        dg_connection = deepgram.listen.asynclive.v("1")
+    try:
+        # Configure Deepgram connection
+        dg_connection = deepgram_client.listen.asynclive.v("1")
         print("Listening...")
 
         async def on_message(result, **kwargs):
             sentence = result.channel.alternatives[0].transcript
-            
             if not result.speech_final:
                 transcript_collector.add_part(sentence)
             else:
                 transcript_collector.add_part(sentence)
                 full_sentence = transcript_collector.get_full_transcript()
                 if len(full_sentence.strip()) > 0:
-                    full_sentence = full_sentence.strip()
                     print(f"Human: {full_sentence}")
                     callback(full_sentence)
                     transcript_collector.reset()
@@ -157,10 +92,11 @@ async def get_transcript(callback):
 
         await dg_connection.start(options)
 
+        # Open a microphone stream
         microphone = Microphone(dg_connection.send)
         microphone.start()
 
-        await transcription_complete.wait()
+        await transcription_complete.wait()  # Wait for transcription to complete
         microphone.finish()
         await dg_connection.finish()
 
@@ -170,7 +106,6 @@ async def get_transcript(callback):
 class ConversationManager:
     def __init__(self):
         self.transcription_response = ""
-        self.llm = LanguageModelProcessor()
 
     async def main(self):
         def handle_full_sentence(full_sentence):
@@ -181,15 +116,42 @@ class ConversationManager:
             if "goodbye" in self.transcription_response.lower():
                 break
             
-            llm_response = self.llm.process(self.transcription_response)
+            llm_response = conversation.invoke({"text": self.transcription_response})
+            print(f"LLM Response: {llm_response['text']}")
 
-            tts = TextToSpeech()
-            tts.speak(llm_response)
+            # Speak the response using Deepgram TTS
+            self.speak(llm_response['text'])
 
+            # Reset transcription response for the next loop iteration
             self.transcription_response = ""
 
-# Streamlit app setup
-st.title("Live Transcription and Text-to-Speech")
-if st.button("Start Listening"):
+    def speak(self, text):
+        DEEPGRAM_URL = f"https://api.deepgram.com/v1/speak"
+        headers = {
+            "Authorization": f"Token {DEEPGRAM_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "text": text
+        }
+
+        player_command = ["ffplay", "-autoexit", "-", "-nodisp"]
+        player_process = subprocess.Popen(
+            player_command,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        with requests.post(DEEPGRAM_URL, stream=True, headers=headers, json=payload) as r:
+            for chunk in r.iter_content(chunk_size=1024):
+                if chunk:
+                    player_process.stdin.write(chunk)
+                    player_process.stdin.flush()
+
+        player_process.stdin.close()
+        player_process.wait()
+
+if __name__ == "__main__":
     manager = ConversationManager()
     asyncio.run(manager.main())
