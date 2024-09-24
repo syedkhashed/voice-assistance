@@ -1,4 +1,5 @@
 streamlit==1.24.0
+--upgrade pip
 Pillow==8.4.0
 requests==2.31.0
 langchain-core
