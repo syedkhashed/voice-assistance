@@ -1,5 +1,5 @@
 streamlit
-audio-recorder-streamlit
 speechrecognition
 gtts
-pydub
+librosa
+soundfile
