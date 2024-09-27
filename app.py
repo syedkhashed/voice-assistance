@@ -24,18 +24,22 @@ st.title("🧑‍💻 Talking Assistant")
 
 # Audio recording component
 audio_bytes = audio_recorder()
+
 if audio_bytes:
-    # Save the Recorded File
+    # Save the recorded file
     audio_location = "audio_file.wav"
     with open(audio_location, "wb") as f:
         f.write(audio_bytes)
+
+    # Ensure the audio file was saved correctly
+    st.write("Audio recorded successfully!")
 
     # Transcribe the audio
     text = transcribe_audio(audio_location)
     st.write("Transcribed Text: ", text)
 
-    if text != "Sorry, I could not understand the audio.":
-        # Generate AI response (placeholder)
+    if text and "Sorry" not in text:
+        # Generate AI response
         api_response = f"You said: {text}."
         st.write("AI Response: ", api_response)
 
