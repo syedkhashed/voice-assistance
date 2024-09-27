@@ -32,9 +32,12 @@ if audio_bytes:
     with open(audio_location, "wb") as f:
         f.write(audio_bytes)
 
-    # Confirm that the audio was recorded
     st.write("Audio recorded successfully!")
 
+    # Debugging: Check if the audio file is saved correctly
+    if audio_bytes:
+        st.write("Audio file size:", len(audio_bytes))
+        
     # Transcribe the audio
     text = transcribe_audio(audio_location)
     st.write("Transcribed Text: ", text)
