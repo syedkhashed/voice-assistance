@@ -1,10 +1,7 @@
 streamlit
-numpy
-requests
-python-dotenv
-deepgram-sdk
-langchain-core
-langchain-groq
-sounddevice
-langchain
-pydantic==2.0.0
+speechrecognition 
+gtts 
+sounddevice 
+numpy 
+pydub
+
