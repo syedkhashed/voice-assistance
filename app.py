@@ -24,7 +24,7 @@ st.title("🧑‍💻 Talking Assistant")
 
 # Audio recording component
 st.write("Click the button to record your voice. Speak clearly into the microphone.")
-audio_bytes = audio_recorder(duration=10)  # Set duration to 10 seconds
+audio_bytes = audio_recorder()  # No duration parameter
 
 if audio_bytes:
     # Save the recorded file
