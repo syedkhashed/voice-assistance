@@ -1,157 +1,72 @@
-import os
-import time
-import requests
-import subprocess
 import streamlit as st
-from deepgram import DeepgramClient, LiveTranscriptionEvents, LiveOptions, Microphone
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_groq import ChatGroq
-from langchain.memory import ConversationBufferMemory
-from langchain.prompts import (
-    MessagesPlaceholder,
-    SystemMessagePromptTemplate,
-    HumanMessagePromptTemplate,
-)
-from langchain.chains import LLMChain
+import speech_recognition as sr
+from gtts import gTTS
+import os
+import sounddevice as sd
+from scipy.io.wavfile import write
+from pydub import AudioSegment
+from io import BytesIO
 
-# Set your API keys directly
-DEEPGRAM_API_KEY = "9c5ccd2db18c95a12574e844e2137dd22d33c3e8"
-GROQ_API_KEY = "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"
+# Title
+st.title("Speech-to-Voice Conversion")
 
-# Initialize Deepgram and Groq clients
-deepgram_client = DeepgramClient(DEEPGRAM_API_KEY)
-llm = ChatGroq(temperature=0, model_name="mixtral-8x7b-32768", groq_api_key=GROQ_API_KEY)
+# Step 1: Record user's speech using microphone
+def record_audio(duration=5, fs=44100):
+    st.write("Recording... Please speak.")
+    audio_data = sd.rec(int(duration * fs), samplerate=fs, channels=2)
+    sd.wait()  # Wait until recording is finished
+    write('user_audio.wav', fs, audio_data)  # Save as WAV file
+    st.write("Recording complete.")
+    return 'user_audio.wav'
 
-# Memory for conversation history
-memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
-
-# Load the system prompt from a file
-with open('system_prompt.txt', 'r') as file:
-    system_prompt = file.read().strip()
-
-prompt = ChatPromptTemplate.from_messages([
-    SystemMessagePromptTemplate.from_template(system_prompt),
-    MessagesPlaceholder(variable_name="chat_history"),
-    HumanMessagePromptTemplate.from_template("{text}")
-])
-
-conversation = LLMChain(
-    llm=llm,
-    prompt=prompt,
-    memory=memory
-)
-
-class TranscriptCollector:
-    def __init__(self):
-        self.reset()
-
-    def reset(self):
-        self.transcript_parts = []
-
-    def add_part(self, part):
-        self.transcript_parts.append(part)
-
-    def get_full_transcript(self):
-        return ' '.join(self.transcript_parts)
-
-transcript_collector = TranscriptCollector()
-
-async def get_transcript(callback):
-    transcription_complete = asyncio.Event()
-
+# Step 2: Convert speech to text
+def speech_to_text(audio_file):
+    recognizer = sr.Recognizer()
+    with sr.AudioFile(audio_file) as source:
+        audio = recognizer.record(source)  # read the entire audio file
     try:
-        # Configure Deepgram connection
-        dg_connection = deepgram_client.listen.asynclive.v("1")
-        print("Listening...")
+        text = recognizer.recognize_google(audio)
+        st.write(f"Recognized Text: {text}")
+        return text
+    except sr.UnknownValueError:
+        st.write("Google Speech Recognition could not understand the audio.")
+        return ""
+    except sr.RequestError as e:
+        st.write(f"Could not request results from Google Speech Recognition service; {e}")
+        return ""
 
-        async def on_message(result, **kwargs):
-            sentence = result.channel.alternatives[0].transcript
-            if not result.speech_final:
-                transcript_collector.add_part(sentence)
-            else:
-                transcript_collector.add_part(sentence)
-                full_sentence = transcript_collector.get_full_transcript()
-                if len(full_sentence.strip()) > 0:
-                    print(f"Human: {full_sentence}")
-                    callback(full_sentence)
-                    transcript_collector.reset()
-                    transcription_complete.set()
+# Step 3: Convert text to speech with different voices
+def text_to_speech(text, voice_option):
+    # Using gTTS for simplicity
+    if text:
+        tts = gTTS(text=text, lang='en', tld=voice_option)  # 'tld' for voice variation
+        tts.save('converted_speech.mp3')
+        st.write("Speech converted into voice.")
+        return 'converted_speech.mp3'
+    return None
 
-        dg_connection.on(LiveTranscriptionEvents.Transcript, on_message)
+# Step 4: Play back the synthesized speech
+def play_audio(file_path):
+    audio_file = open(file_path, 'rb')
+    audio_bytes = audio_file.read()
+    st.audio(audio_bytes, format='audio/mp3')
 
-        options = LiveOptions(
-            model="nova-2",
-            punctuate=True,
-            language="en-US",
-            encoding="linear16",
-            channels=1,
-            sample_rate=16000,
-            endpointing=300,
-            smart_format=True,
-        )
+# Main Streamlit UI
+st.write("Click the button below to record your speech.")
 
-        await dg_connection.start(options)
+if st.button("Record"):
+    audio_file = record_audio()
+    if audio_file:
+        # Convert speech to text
+        text = speech_to_text(audio_file)
 
-        # Open a microphone stream
-        microphone = Microphone(dg_connection.send)
-        microphone.start()
+        # Select voice option
+        st.write("Select a voice option:")
+        voice_option = st.selectbox("Voice", options=["com", "co.uk", "com.au", "co.in", "ca"])
 
-        await transcription_complete.wait()  # Wait for transcription to complete
-        microphone.finish()
-        await dg_connection.finish()
-
-    except Exception as e:
-        print(f"Could not open socket: {e}")
-
-class ConversationManager:
-    def __init__(self):
-        self.transcription_response = ""
-
-    async def main(self):
-        def handle_full_sentence(full_sentence):
-            self.transcription_response = full_sentence
-
-        while True:
-            await get_transcript(handle_full_sentence)
-            if "goodbye" in self.transcription_response.lower():
-                break
-            
-            llm_response = conversation.invoke({"text": self.transcription_response})
-            print(f"LLM Response: {llm_response['text']}")
-
-            # Speak the response using Deepgram TTS
-            self.speak(llm_response['text'])
-
-            # Reset transcription response for the next loop iteration
-            self.transcription_response = ""
-
-    def speak(self, text):
-        DEEPGRAM_URL = f"https://api.deepgram.com/v1/speak"
-        headers = {
-            "Authorization": f"Token {DEEPGRAM_API_KEY}",
-            "Content-Type": "application/json"
-        }
-        payload = {
-            "text": text
-        }
-
-        player_command = ["ffplay", "-autoexit", "-", "-nodisp"]
-        player_process = subprocess.Popen(
-            player_command,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-
-        with requests.post(DEEPGRAM_URL, stream=True, headers=headers, json=payload) as r:
-            for chunk in r.iter_content(chunk_size=1024):
-                if chunk:
-                    player_process.stdin.write(chunk)
-                    player_process.stdin.flush()
-
-        player_process.stdin.close()
-        player_process.wait()
-
-if __name__ == "__main__":
-    manager = ConversationManager()
-    asyncio.run(manager.main())
+        # Convert text to speech with selected voice
+        if text:
+            speech_file = text_to_speech(text, voice_option)
+            if speech_file:
+                st.write("Playing the converted voice...")
+                play_audio(speech_file)
