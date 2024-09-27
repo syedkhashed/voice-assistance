@@ -1,27 +1,16 @@
 import streamlit as st
 import speech_recognition as sr
 from gtts import gTTS
-from pydub import AudioSegment
-
-def convert_to_wav(input_file):
-    # Convert audio file to WAV format
-    audio = AudioSegment.from_file(input_file)
-    wav_file = "converted_audio.wav"
-    audio.export(wav_file, format="wav")
-    return wav_file
 
 def transcribe_audio(file):
     recognizer = sr.Recognizer()
     with sr.AudioFile(file) as source:
         audio_data = recognizer.record(source)
         try:
-            # Attempt to recognize the speech in the audio file
             return recognizer.recognize_google(audio_data)
         except sr.UnknownValueError:
-            # Handle the case where speech could not be recognized
             return "Sorry, I could not understand the audio."
         except sr.RequestError as e:
-            # Handle the case where the API is unreachable or there's another issue
             return f"API request failed with error: {e}"
 
 def text_to_speech(response):
@@ -32,31 +21,23 @@ def text_to_speech(response):
 
 st.title("🧑‍💻 Talking Assistant")
 
-uploaded_file = st.file_uploader("Upload an audio file", type=["wav", "mp3"])
+uploaded_file = st.file_uploader("Upload a WAV audio file", type=["wav"])
 
 if uploaded_file is not None:
-    # Save the uploaded file temporarily
-    temp_file_path = "uploaded_audio.mp3"
-    with open(temp_file_path, "wb") as f:
+    # Save the uploaded WAV file
+    wav_file_path = "uploaded_audio.wav"
+    with open(wav_file_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
 
-    # Convert the uploaded file to WAV format if it's not already
-    if uploaded_file.type == "audio/mpeg":  # Check if it's an MP3 file
-        wav_file_path = convert_to_wav(temp_file_path)
-    else:
-        wav_file_path = "uploaded_audio.wav"
-        with open(wav_file_path, "wb") as f:
-            f.write(uploaded_file.getbuffer())
-
-    # Transcribe the saved file to text
+    # Transcribe the audio
     text = transcribe_audio(wav_file_path)
     st.write("Transcribed Text: ", text)
 
     if text != "Sorry, I could not understand the audio.":
-        # Replace this with your own AI response logic
-        api_response = "This is a placeholder response based on your input."
+        # Generate AI response (placeholder)
+        api_response = f"You said: {text}. How can I assist you further?"
         st.write("AI Response: ", api_response)
 
-        # Read out the text response using tts
+        # Convert AI response to speech
         speech_file_path = text_to_speech(api_response)
         st.audio(speech_file_path)
