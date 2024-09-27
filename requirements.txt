@@ -4,4 +4,4 @@ gtts
 sounddevice 
 numpy 
 pydub
-
+PortAudio
