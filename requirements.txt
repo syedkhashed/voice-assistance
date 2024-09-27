@@ -1,7 +1,7 @@
-streamlit
-speechrecognition 
-gtts 
-sounddevice 
-numpy 
-pydub
-PortAudio
+streamlit==1.38.0
+speechrecognition==3.8.1
+gtts==2.2.3
+sounddevice==0.4.5  # Replaces pyaudio for simpler audio recording
+pydub==0.25.1
+scipy==1.9.1  # Needed for sounddevice
+numpy==1.21.6  # Ensure a compatible version of numpy
