@@ -1,5 +1,5 @@
 streamlit
 audio-recorder-streamlit
 speechrecognition
-pyttsx3
+gTTS
 pydub
