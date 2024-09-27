@@ -1,19 +1,13 @@
 import os
 import streamlit as st
 from pydub import AudioSegment
-from pydub.playback import play
 import speech_recognition as sr
 import io
-import subprocess
 
-# Ensure ffmpeg is installed
-def ensure_ffmpeg_installed():
-    if not os.path.isfile("ffmpeg"):
-        st.info("Downloading ffmpeg...")
-        subprocess.run(['apt-get', 'install', 'ffmpeg'], check=True)
-
-# Call the function to ensure ffmpeg is installed
-ensure_ffmpeg_installed()
+# Set the path for ffmpeg
+# This will append the bin directory to the PATH environment variable
+ffmpeg_path = os.path.join(os.getcwd(), 'bin')  # Adjust path to 'bin' folder
+os.environ["PATH"] += os.pathsep + ffmpeg_path
 
 # Title of the app
 st.title("Speech to Text with Audio Playback")
@@ -46,7 +40,3 @@ if audio_file:
             st.error("Could not understand the audio")
         except sr.RequestError as e:
             st.error(f"Could not request results from Google Speech Recognition service; {e}")
-
-    # Option to play the audio again
-    if st.button("Play Uploaded Audio"):
-        play(audio)  # Playback using PyDub
