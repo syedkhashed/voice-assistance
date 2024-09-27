@@ -1,8 +1,19 @@
+import os
 import streamlit as st
 from pydub import AudioSegment
 from pydub.playback import play
 import speech_recognition as sr
 import io
+import subprocess
+
+# Ensure ffmpeg is installed
+def ensure_ffmpeg_installed():
+    if not os.path.isfile("ffmpeg"):
+        st.info("Downloading ffmpeg...")
+        subprocess.run(['apt-get', 'install', 'ffmpeg'], check=True)
+
+# Call the function to ensure ffmpeg is installed
+ensure_ffmpeg_installed()
 
 # Title of the app
 st.title("Speech to Text with Audio Playback")
