@@ -23,7 +23,8 @@ def text_to_speech(response):
 st.title("🧑‍💻 Talking Assistant")
 
 # Audio recording component
-audio_bytes = audio_recorder()
+st.write("Click the button to record your voice. Speak clearly into the microphone.")
+audio_bytes = audio_recorder(duration=10)  # Set duration to 10 seconds
 
 if audio_bytes:
     # Save the recorded file
@@ -31,7 +32,7 @@ if audio_bytes:
     with open(audio_location, "wb") as f:
         f.write(audio_bytes)
 
-    # Ensure the audio file was saved correctly
+    # Confirm that the audio was recorded
     st.write("Audio recorded successfully!")
 
     # Transcribe the audio
@@ -46,3 +47,5 @@ if audio_bytes:
         # Convert AI response to speech
         speech_file_path = text_to_speech(api_response)
         st.audio(speech_file_path)
+    else:
+        st.write("Please try again with clearer audio.")
