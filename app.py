@@ -35,7 +35,7 @@ if uploaded_file is not None:
 
     if text != "Sorry, I could not understand the audio.":
         # Generate AI response (placeholder)
-        api_response = f"You said: {text}. How can I assist you further?"
+        api_response = f"You said: {text}.?"
         st.write("AI Response: ", api_response)
 
         # Convert AI response to speech
