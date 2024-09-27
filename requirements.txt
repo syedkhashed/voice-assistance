@@ -1,7 +1,4 @@
-streamlit==1.38.0
-speechrecognition==3.8.1
-gtts==2.2.3
-sounddevice==0.4.5  # Replaces pyaudio for simpler audio recording
-pydub==0.25.1
-scipy>=1.9.0  # Updated to a compatible version
-numpy>=1.21.0  # Use a compatible version of numpy
+streamlit
+pydub
+SpeechRecognition
+ffmpeg
