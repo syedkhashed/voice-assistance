@@ -2,7 +2,6 @@ import streamlit as st
 import speech_recognition as sr
 from gtts import gTTS
 from pydub import AudioSegment
-import os
 
 def convert_to_wav(input_file):
     # Convert audio file to WAV format
@@ -15,7 +14,15 @@ def transcribe_audio(file):
     recognizer = sr.Recognizer()
     with sr.AudioFile(file) as source:
         audio_data = recognizer.record(source)
-        return recognizer.recognize_google(audio_data)
+        try:
+            # Attempt to recognize the speech in the audio file
+            return recognizer.recognize_google(audio_data)
+        except sr.UnknownValueError:
+            # Handle the case where speech could not be recognized
+            return "Sorry, I could not understand the audio."
+        except sr.RequestError as e:
+            # Handle the case where the API is unreachable or there's another issue
+            return f"API request failed with error: {e}"
 
 def text_to_speech(response):
     tts = gTTS(text=response, lang='en')
@@ -45,10 +52,11 @@ if uploaded_file is not None:
     text = transcribe_audio(wav_file_path)
     st.write("Transcribed Text: ", text)
 
-    # Replace this with your own AI response logic
-    api_response = "This is a placeholder response based on your input."
-    st.write("AI Response: ", api_response)
+    if text != "Sorry, I could not understand the audio.":
+        # Replace this with your own AI response logic
+        api_response = "This is a placeholder response based on your input."
+        st.write("AI Response: ", api_response)
 
-    # Read out the text response using tts
-    speech_file_path = text_to_speech(api_response)
-    st.audio(speech_file_path)
+        # Read out the text response using tts
+        speech_file_path = text_to_speech(api_response)
+        st.audio(speech_file_path)
