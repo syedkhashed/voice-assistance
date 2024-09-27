@@ -1,34 +1,34 @@
 import streamlit as st
-from audio_recorder_streamlit import audio_recorder
-from speech_recognition import Recognizer, AudioFile
+import speech_recognition as sr
 from gtts import gTTS
 import os
 
-def transcribe_text_to_voice(audio_location):
-    recognizer = Recognizer()
-    with AudioFile(audio_location) as source:
+def transcribe_audio(file):
+    recognizer = sr.Recognizer()
+    with sr.AudioFile(file) as source:
         audio_data = recognizer.record(source)
-        text = recognizer.recognize_google(audio_data)
-    return text
+        return recognizer.recognize_google(audio_data)
 
-def text_to_speech_ai(speech_file_path, api_response):
-    tts = gTTS(text=api_response, lang='en')
-    tts.save(speech_file_path)
+def text_to_speech(response):
+    tts = gTTS(text=response, lang='en')
+    tts_file = 'response.mp3'
+    tts.save(tts_file)
+    return tts_file
 
 st.title("🧑‍💻 Talking Assistant")
 
-audio_bytes = audio_recorder()
-if audio_bytes:
-    audio_location = "audio_file.wav"
-    with open(audio_location, "wb") as f:
-        f.write(audio_bytes)
+uploaded_file = st.file_uploader("Upload an audio file", type=["wav", "mp3"])
 
-    text = transcribe_text_to_voice(audio_location)
+if uploaded_file is not None:
+    with open("uploaded_audio.wav", "wb") as f:
+        f.write(uploaded_file.getbuffer())
+    
+    text = transcribe_audio("uploaded_audio.wav")
     st.write("Transcribed Text: ", text)
 
-    api_response = "This is a placeholder response based on your input."  # Replace with your AI response logic
+    # Replace this with your own AI response logic
+    api_response = "This is a placeholder response based on your input."
     st.write("AI Response: ", api_response)
 
-    speech_file_path = 'audio_response.mp3'
-    text_to_speech_ai(speech_file_path, api_response)
+    speech_file_path = text_to_speech(api_response)
     st.audio(speech_file_path)
