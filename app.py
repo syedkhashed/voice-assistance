@@ -1,42 +1,59 @@
-import os
+# speech_to_ai_speech.py
+
 import streamlit as st
-from pydub import AudioSegment
+from audio_recorder_streamlit import audio_recorder
 import speech_recognition as sr
-import io
+import pyttsx3
+from pydub import AudioSegment
+import os
 
-# Set the path for ffmpeg
-# This will append the bin directory to the PATH environment variable
-ffmpeg_path = os.path.join(os.getcwd(), 'bin')  # Adjust path to 'bin' folder
-os.environ["PATH"] += os.pathsep + ffmpeg_path
+# Initialize text-to-speech engine
+engine = pyttsx3.init()
 
-# Title of the app
-st.title("Speech to Text with Audio Playback")
-
-# Upload an audio file
-audio_file = st.file_uploader("Upload an audio file (MP3 or WAV)", type=["mp3", "wav"])
-
-if audio_file:
-    # Display uploaded audio file
-    st.audio(audio_file, format='audio/mp3')
-
-    # Convert the uploaded audio to an AudioSegment for playback
-    audio = AudioSegment.from_file(audio_file)
-
-    # Save the file temporarily in memory
-    audio_data = io.BytesIO()
-    audio.export(audio_data, format="wav")  # Export to .wav for speech recognition
-    audio_data.seek(0)
-
-    # Perform speech recognition
+# Function to transcribe audio to text
+def transcribe_audio_to_text(audio_location):
     recognizer = sr.Recognizer()
-    with sr.AudioFile(audio_data) as source:
-        audio_content = recognizer.record(source)  # Record the audio content
-        try:
-            # Recognize the speech using Google's API
-            text = recognizer.recognize_google(audio_content)
-            st.write("Transcribed Text: ")
-            st.success(text)  # Display the recognized text
-        except sr.UnknownValueError:
-            st.error("Could not understand the audio")
-        except sr.RequestError as e:
-            st.error(f"Could not request results from Google Speech Recognition service; {e}")
+    
+    # Load the audio file and convert it to a format compatible with speech recognition
+    audio = AudioSegment.from_wav(audio_location)
+    audio.export("temp.wav", format="wav")
+    
+    with sr.AudioFile("temp.wav") as source:
+        audio_data = recognizer.record(source)
+        text = recognizer.recognize_google(audio_data)
+    return text
+
+# Function to convert text to speech
+def text_to_speech_ai(response):
+    engine.save_to_file(response, 'audio_response.mp3')
+    engine.runAndWait()
+
+# Streamlit app setup
+st.title("🗣️ Speech to AI Speech Assistant")
+
+"""
+Hi! Just click on the voice recorder and let me know how I can assist you today?
+"""
+
+audio_bytes = audio_recorder()
+if audio_bytes:
+    # Save the recorded audio file
+    audio_location = "audio_file.wav"
+    with open(audio_location, "wb") as f:
+        f.write(audio_bytes)
+
+    # Transcribe the saved audio file to text
+    text = transcribe_audio_to_text(audio_location)
+    st.write("You said:", text)
+
+    # Create a simple AI response (for demonstration purposes)
+    api_response = f"You said: {text}. How can I assist you further?"
+    st.write("AI response:", api_response)
+
+    # Convert AI response to speech and play it
+    text_to_speech_ai(api_response)
+    st.audio('audio_response.mp3')
+
+# Clean up temporary files
+if os.path.exists("temp.wav"):
+    os.remove("temp.wav")
