@@ -1,7 +1,6 @@
 import streamlit as st
 import requests
 import json
-import numpy as np
 from audio_recorder_streamlit import audio_recorder
 from deepgram import DeepgramClient, SpeakOptions, SpeakWebSocketEvents
 
@@ -37,29 +36,33 @@ def text_to_speech(response):
         # Create a websocket connection to Deepgram
         dg_connection = deepgram.speak.websocket.v("1")
 
-        # Prepare the options
-        options = SpeakOptions(
-            model="aura-asteria-en",
-            encoding="linear16",
-            container="none",
-            sample_rate=48000,
-        )
-
-        if not dg_connection.start(options):
-            print("Failed to start connection")
-            return None
-
-        # Send the text to Deepgram
-        dg_connection.send_text(response)
-        dg_connection.flush()
-
-        # Wait for audio data and save it to a file
         audio_file_path = "response.wav"
-        with open(audio_file_path, "wb") as audio_file:
-            dg_connection.on(SpeakWebSocketEvents.AudioData, lambda data, **kwargs: audio_file.write(data))
 
-        # Wait for the connection to finish
-        dg_connection.finish()
+        # Open the audio file for writing
+        with open(audio_file_path, "wb") as audio_file:
+            def on_audio_data(data, **kwargs):
+                audio_file.write(data)  # Write the audio data to the file
+
+            dg_connection.on(SpeakWebSocketEvents.AudioData, on_audio_data)
+
+            # Prepare the options
+            options = SpeakOptions(
+                model="aura-asteria-en",
+                encoding="linear16",
+                container="none",
+                sample_rate=48000,
+            )
+
+            if not dg_connection.start(options):
+                print("Failed to start connection")
+                return None
+
+            # Send the text to Deepgram
+            dg_connection.send_text(response)
+            dg_connection.flush()
+
+            # Wait for the audio data to finish writing
+            dg_connection.finish()
 
         return audio_file_path
 
@@ -90,4 +93,4 @@ if audio_bytes:
         # Convert AI response to speech
         speech_file_path = text_to_speech(api_response)
         if speech_file_path:
-            st.audio(speech_file_path)
+            st.audio(speech_file_path)  # Play the audio
