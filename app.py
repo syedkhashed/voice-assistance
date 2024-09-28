@@ -1,11 +1,8 @@
 import streamlit as st
 import requests
 import json
-import pyttsx3
+from gtts import gTTS
 from audio_recorder_streamlit import audio_recorder
-
-# Initialize the text-to-speech engine
-engine = pyttsx3.init()
 
 def transcribe_audio(file):
     headers = {
@@ -31,9 +28,9 @@ def transcribe_audio(file):
             return "Sorry, the transcription failed."
 
 def text_to_speech(response):
+    tts = gTTS(text=response, lang='en')
     audio_file_path = "response.mp3"
-    engine.save_to_file(response, audio_file_path)
-    engine.runAndWait()
+    tts.save(audio_file_path)
     return audio_file_path
 
 st.title("🧑‍💻 Talking Assistant")
