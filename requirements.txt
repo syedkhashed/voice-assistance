@@ -9,5 +9,5 @@ requests
 sounddevice
 
 
-libsound-dev
-portaudio19-dev
+libsound
+portaudio19
