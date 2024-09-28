@@ -7,4 +7,7 @@ audio_recorder_streamlit
 pyttsx3
 requests
 sounddevice
-PortAudio
+
+build-essential
+libsound-dev
+portaudio19-dev
