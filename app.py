@@ -60,9 +60,9 @@ def text_to_speech(response):
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_file:
                     tmp_file.write(b''.join(audio_data))  # Write all audio data to the file
                     tmp_file_path = tmp_file.name
-
-                # Return the path of the temporary audio file
                 return tmp_file_path
+            else:
+                return None
 
         dg_connection.on(SpeakWebSocketEvents.Open, on_open)
         dg_connection.on(SpeakWebSocketEvents.AudioData, on_audio_data)
@@ -77,7 +77,7 @@ def text_to_speech(response):
         )
 
         if not dg_connection.start(options):
-            print("Failed to start connection")
+            st.write("Failed to start connection")
             return None
 
         # Send the text to Deepgram
@@ -87,7 +87,8 @@ def text_to_speech(response):
         # Wait for the audio data to finish writing
         dg_connection.finish()
 
-        return None  # Indicate that audio generation is in progress
+        # Return the path of the temporary audio file
+        return on_close(None)
 
     except Exception as e:
         st.write(f"An unexpected error occurred during TTS: {e}")
