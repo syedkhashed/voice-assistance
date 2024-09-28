@@ -8,6 +8,6 @@ pyttsx3
 requests
 sounddevice
 
-build-essential
+
 libsound-dev
 portaudio19-dev
