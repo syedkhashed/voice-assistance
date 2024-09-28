@@ -2,7 +2,6 @@ import streamlit as st
 import requests
 import json
 import numpy as np
-import sounddevice as sd
 from audio_recorder_streamlit import audio_recorder
 from deepgram import DeepgramClient, SpeakOptions, SpeakWebSocketEvents
 
@@ -38,23 +37,7 @@ def text_to_speech(response):
         # Create a websocket connection to Deepgram
         dg_connection = deepgram.speak.websocket.v("1")
 
-        def on_open(open, **kwargs):
-            print(f"Connection opened: {open}")
-
-        def on_binary_data(data, **kwargs):
-            print("Received binary data")
-            array = np.frombuffer(data, dtype=np.int16)
-            sd.play(array, 48000)
-            sd.wait()
-
-        def on_close(close, **kwargs):
-            print(f"Connection closed: {close}")
-
-        dg_connection.on(SpeakWebSocketEvents.Open, on_open)
-        dg_connection.on(SpeakWebSocketEvents.AudioData, on_binary_data)
-        dg_connection.on(SpeakWebSocketEvents.Close, on_close)
-
-        # Connect to websocket
+        # Prepare the options
         options = SpeakOptions(
             model="aura-asteria-en",
             encoding="linear16",
@@ -64,20 +47,25 @@ def text_to_speech(response):
 
         if not dg_connection.start(options):
             print("Failed to start connection")
-            return
+            return None
 
         # Send the text to Deepgram
         dg_connection.send_text(response)
         dg_connection.flush()
 
-        # Wait for audio playback to complete
-        sd.wait()
+        # Wait for audio data and save it to a file
+        audio_file_path = "response.wav"
+        with open(audio_file_path, "wb") as audio_file:
+            dg_connection.on(SpeakWebSocketEvents.AudioData, lambda data, **kwargs: audio_file.write(data))
+
+        # Wait for the connection to finish
         dg_connection.finish()
 
-        print("Finished TTS")
-        
+        return audio_file_path
+
     except Exception as e:
         print(f"An unexpected error occurred during TTS: {e}")
+        return None
 
 st.title("🧑‍💻 Talking Assistant")
 
@@ -100,4 +88,6 @@ if audio_bytes:
         st.write("AI Response: ", api_response)
 
         # Convert AI response to speech
-        text_to_speech(api_response)
+        speech_file_path = text_to_speech(api_response)
+        if speech_file_path:
+            st.audio(speech_file_path)
