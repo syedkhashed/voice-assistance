@@ -1,7 +1,6 @@
 import streamlit as st
 import speech_recognition as sr
 from gtts import gTTS
-from audio_recorder_streamlit import audio_recorder
 
 def transcribe_audio(file):
     recognizer = sr.Recognizer()
@@ -22,33 +21,23 @@ def text_to_speech(response):
 
 st.title("🧑‍💻 Talking Assistant")
 
-# Audio recording component
-st.write("Click the button to record your voice. Speak clearly into the microphone.")
-audio_bytes = audio_recorder()  # No duration parameter
+uploaded_file = st.file_uploader("Upload a WAV audio file", type=["wav"])
 
-if audio_bytes:
-    # Save the recorded file
-    audio_location = "audio_file.wav"
-    with open(audio_location, "wb") as f:
-        f.write(audio_bytes)
+if uploaded_file is not None:
+    # Save the uploaded WAV file
+    wav_file_path = "uploaded_audio.wav"
+    with open(wav_file_path, "wb") as f:
+        f.write(uploaded_file.getbuffer())
 
-    st.write("Audio recorded successfully!")
-
-    # Debugging: Check if the audio file is saved correctly
-    if audio_bytes:
-        st.write("Audio file size:", len(audio_bytes))
-        
     # Transcribe the audio
-    text = transcribe_audio(audio_location)
+    text = transcribe_audio(wav_file_path)
     st.write("Transcribed Text: ", text)
 
-    if text and "Sorry" not in text:
-        # Generate AI response
-        api_response = f"You said: {text}."
+    if text != "Sorry, I could not understand the audio.":
+        # Generate AI response (placeholder)
+        api_response = f"You said: {text}.?"
         st.write("AI Response: ", api_response)
 
         # Convert AI response to speech
         speech_file_path = text_to_speech(api_response)
         st.audio(speech_file_path)
-    else:
-        st.write("Please try again with clearer audio.")
