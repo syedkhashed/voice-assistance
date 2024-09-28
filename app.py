@@ -16,12 +16,18 @@ def transcribe_audio(file):
     
     # Upload audio file to AssemblyAI
     upload_response = requests.post("https://api.assemblyai.com/v2/upload", headers=headers, data=file)
-    audio_url = upload_response.json()["upload_url"]
+    audio_url = upload_response.json().get("upload_url")
+
+    if not audio_url:
+        return "Failed to upload audio."
 
     # Request transcription
     json_data = json.dumps({"audio_url": audio_url})
     transcription_response = requests.post("https://api.assemblyai.com/v2/transcript", headers=headers, data=json_data)
-    transcript_id = transcription_response.json()["id"]
+    transcript_id = transcription_response.json().get("id")
+
+    if not transcript_id:
+        return "Failed to get transcription ID."
 
     # Poll for transcription result
     while True:
@@ -69,7 +75,7 @@ def text_to_speech(response):
         return audio_file_path
 
     except Exception as e:
-        print(f"An unexpected error occurred during TTS: {e}")
+        st.write(f"An unexpected error occurred during TTS: {e}")
         return None
 
 st.title("🧑‍💻 Talking Assistant")
@@ -88,7 +94,7 @@ if audio_bytes:
     st.write("Transcribed Text: ", text)
 
     if text != "Sorry, the transcription failed.":
-        # Generate AI response (placeholder)
+        # Generate AI response
         api_response = f"You said: {text}."
         st.write("AI Response: ", api_response)
 
