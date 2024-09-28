@@ -4,11 +4,13 @@ import json
 from audio_recorder_streamlit import audio_recorder
 from deepgram import DeepgramClient, SpeakOptions, SpeakWebSocketEvents
 
-DEEPGRAM_API_KEY = "9c5ccd2db18c95a12574e844e2137dd22d33c3e8"  # Your Deepgram API Key
+# Your API Keys
+ASSEMBLYAI_API_KEY = "03aa14046bf74bfe936f6214850443f1"  # Replace with your AssemblyAI API Key
+DEEPGRAM_API_KEY = "9c5ccd2db18c95a12574e844e2137dd22d33c3e8"  # Replace with your Deepgram API Key
 
 def transcribe_audio(file):
     headers = {
-        "authorization": "03aa14046bf74bfe936f6214850443f1",  # Your AssemblyAI API Key
+        "authorization": ASSEMBLYAI_API_KEY,
         "content-type": "application/json"
     }
     
@@ -94,3 +96,6 @@ if audio_bytes:
         speech_file_path = text_to_speech(api_response)
         if speech_file_path:
             st.audio(speech_file_path)  # Play the audio
+            st.write("Audio Output: ", speech_file_path)  # Display the path for debugging
+        else:
+            st.write("Failed to generate audio.")
