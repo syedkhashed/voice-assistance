@@ -1,24 +1,40 @@
 import streamlit as st
-import speech_recognition as sr
-from gtts import gTTS
+import requests
+import json
+import pyttsx3
 from audio_recorder_streamlit import audio_recorder
 
+# Initialize the text-to-speech engine
+engine = pyttsx3.init()
+
 def transcribe_audio(file):
-    recognizer = sr.Recognizer()
-    with sr.AudioFile(file) as source:
-        audio_data = recognizer.record(source)
-        try:
-            return recognizer.recognize_google(audio_data)
-        except sr.UnknownValueError:
-            return "Sorry, I could not understand the audio."
-        except sr.RequestError as e:
-            return f"API request failed with error: {e}"
+    headers = {
+        "authorization": "03aa14046bf74bfe936f6214850443f1",  # Your AssemblyAI API Key
+        "content-type": "application/json"
+    }
+    
+    # Upload audio file to AssemblyAI
+    upload_response = requests.post("https://api.assemblyai.com/v2/upload", headers=headers, data=file)
+    audio_url = upload_response.json()["upload_url"]
+
+    # Request transcription
+    json_data = json.dumps({"audio_url": audio_url})
+    transcription_response = requests.post("https://api.assemblyai.com/v2/transcript", headers=headers, data=json_data)
+    transcript_id = transcription_response.json()["id"]
+
+    # Poll for transcription result
+    while True:
+        response = requests.get(f"https://api.assemblyai.com/v2/transcript/{transcript_id}", headers=headers)
+        if response.json()["status"] == "completed":
+            return response.json()["text"]
+        elif response.json()["status"] == "failed":
+            return "Sorry, the transcription failed."
 
 def text_to_speech(response):
-    tts = gTTS(text=response, lang='en')
-    tts_file = 'response.mp3'
-    tts.save(tts_file)
-    return tts_file
+    audio_file_path = "response.mp3"
+    engine.save_to_file(response, audio_file_path)
+    engine.runAndWait()
+    return audio_file_path
 
 st.title("🧑‍💻 Talking Assistant")
 
@@ -31,10 +47,11 @@ if audio_bytes:
         f.write(audio_bytes)
 
     # Transcribe the audio
-    text = transcribe_audio(audio_location)
+    with open(audio_location, "rb") as audio_file:
+        text = transcribe_audio(audio_file.read())
     st.write("Transcribed Text: ", text)
 
-    if text != "Sorry, I could not understand the audio.":
+    if text != "Sorry, the transcription failed.":
         # Generate AI response (placeholder)
         api_response = f"You said: {text}."
         st.write("AI Response: ", api_response)
