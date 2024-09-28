@@ -1,8 +1,12 @@
 import streamlit as st
 import requests
 import json
-from gtts import gTTS
+import numpy as np
+import sounddevice as sd
 from audio_recorder_streamlit import audio_recorder
+from deepgram import DeepgramClient, SpeakOptions, SpeakWebSocketEvents
+
+DEEPGRAM_API_KEY = "9c5ccd2db18c95a12574e844e2137dd22d33c3e8"  # Your Deepgram API Key
 
 def transcribe_audio(file):
     headers = {
@@ -28,10 +32,52 @@ def transcribe_audio(file):
             return "Sorry, the transcription failed."
 
 def text_to_speech(response):
-    tts = gTTS(text=response, lang='en')
-    audio_file_path = "response.mp3"
-    tts.save(audio_file_path)
-    return audio_file_path
+    try:
+        deepgram = DeepgramClient(DEEPGRAM_API_KEY)
+        
+        # Create a websocket connection to Deepgram
+        dg_connection = deepgram.speak.websocket.v("1")
+
+        def on_open(open, **kwargs):
+            print(f"Connection opened: {open}")
+
+        def on_binary_data(data, **kwargs):
+            print("Received binary data")
+            array = np.frombuffer(data, dtype=np.int16)
+            sd.play(array, 48000)
+            sd.wait()
+
+        def on_close(close, **kwargs):
+            print(f"Connection closed: {close}")
+
+        dg_connection.on(SpeakWebSocketEvents.Open, on_open)
+        dg_connection.on(SpeakWebSocketEvents.AudioData, on_binary_data)
+        dg_connection.on(SpeakWebSocketEvents.Close, on_close)
+
+        # Connect to websocket
+        options = SpeakOptions(
+            model="aura-asteria-en",
+            encoding="linear16",
+            container="none",
+            sample_rate=48000,
+        )
+
+        if not dg_connection.start(options):
+            print("Failed to start connection")
+            return
+
+        # Send the text to Deepgram
+        dg_connection.send_text(response)
+        dg_connection.flush()
+
+        # Wait for audio playback to complete
+        sd.wait()
+        dg_connection.finish()
+
+        print("Finished TTS")
+        
+    except Exception as e:
+        print(f"An unexpected error occurred during TTS: {e}")
 
 st.title("🧑‍💻 Talking Assistant")
 
@@ -54,5 +100,4 @@ if audio_bytes:
         st.write("AI Response: ", api_response)
 
         # Convert AI response to speech
-        speech_file_path = text_to_speech(api_response)
-        st.audio(speech_file_path)
+        text_to_speech(api_response)
