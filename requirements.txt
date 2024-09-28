@@ -8,3 +8,4 @@ pyttsx3
 requests
 sounddevice
 deepgram-sdk
+numpy
