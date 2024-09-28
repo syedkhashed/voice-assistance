@@ -4,3 +4,4 @@ gtts
 librosa
 soundfile
 audio_recorder_streamlit
+pyttsx3
