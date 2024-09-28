@@ -1,7 +1,6 @@
 import streamlit as st
 import requests
 import json
-import numpy as np
 import tempfile
 from audio_recorder_streamlit import audio_recorder
 from deepgram import DeepgramClient, SpeakOptions, SpeakWebSocketEvents
@@ -48,15 +47,14 @@ def text_to_speech(response):
         dg_connection = deepgram.speak.websocket.v("1")
 
         def on_open(self, open, **kwargs):
-            print("WebSocket connection opened.")
+            st.write("WebSocket connection opened.")
 
         def on_audio_data(data, **kwargs):
             audio_data.append(data)  # Collect audio data
 
-        def on_close(self, close, **kwargs):
-            print("WebSocket connection closed.")
+        def on_close(close, **kwargs):
+            st.write("WebSocket connection closed.")
             if audio_data:
-                # Save collected audio data to a temporary file
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_file:
                     tmp_file.write(b''.join(audio_data))  # Write all audio data to the file
                     tmp_file_path = tmp_file.name
@@ -84,7 +82,7 @@ def text_to_speech(response):
         dg_connection.send_text(response)
         dg_connection.flush()
 
-        # Wait for the audio data to finish writing
+        # Finish the connection
         dg_connection.finish()
 
         # Return the path of the temporary audio file
@@ -121,3 +119,4 @@ if audio_bytes:
             st.write("Audio output generated successfully.")
         else:
             st.write("Failed to generate audio.")
+
