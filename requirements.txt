@@ -6,3 +6,4 @@ soundfile
 audio_recorder_streamlit
 pyttsx3
 requests
+sounddevice
