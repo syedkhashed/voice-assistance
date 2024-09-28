@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 import json
 import numpy as np
-import sounddevice as sd
+import tempfile
 from audio_recorder_streamlit import audio_recorder
 from deepgram import DeepgramClient, SpeakOptions, SpeakWebSocketEvents
 
@@ -51,14 +51,18 @@ def text_to_speech(response):
             print("WebSocket connection opened.")
 
         def on_audio_data(data, **kwargs):
-            audio_data.append(np.frombuffer(data, dtype=np.int16))  # Collect audio data
+            audio_data.append(data)  # Collect audio data
 
         def on_close(self, close, **kwargs):
             print("WebSocket connection closed.")
             if audio_data:
-                # Play collected audio data when connection closes
-                sd.play(np.concatenate(audio_data), samplerate=48000)
-                sd.wait()
+                # Save collected audio data to a temporary file
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_file:
+                    tmp_file.write(b''.join(audio_data))  # Write all audio data to the file
+                    tmp_file_path = tmp_file.name
+
+                # Return the path of the temporary audio file
+                return tmp_file_path
 
         dg_connection.on(SpeakWebSocketEvents.Open, on_open)
         dg_connection.on(SpeakWebSocketEvents.AudioData, on_audio_data)
@@ -83,7 +87,7 @@ def text_to_speech(response):
         # Wait for the audio data to finish writing
         dg_connection.finish()
 
-        return "Audio generation completed."
+        return None  # Indicate that audio generation is in progress
 
     except Exception as e:
         st.write(f"An unexpected error occurred during TTS: {e}")
@@ -110,8 +114,9 @@ if audio_bytes:
         st.write("AI Response: ", api_response)
 
         # Convert AI response to speech
-        result = text_to_speech(api_response)
-        if result is not None:
-            st.write(result)
+        speech_file_path = text_to_speech(api_response)
+        if speech_file_path:
+            st.audio(speech_file_path)  # Play the audio
+            st.write("Audio output generated successfully.")
         else:
             st.write("Failed to generate audio.")
