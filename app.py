@@ -1,6 +1,8 @@
 import streamlit as st
 import requests
 import json
+import numpy as np
+import sounddevice as sd
 from audio_recorder_streamlit import audio_recorder
 from deepgram import DeepgramClient, SpeakOptions, SpeakWebSocketEvents
 
@@ -40,39 +42,48 @@ def transcribe_audio(file):
 def text_to_speech(response):
     try:
         deepgram = DeepgramClient(DEEPGRAM_API_KEY)
-        
+        audio_data = []
+
         # Create a websocket connection to Deepgram
         dg_connection = deepgram.speak.websocket.v("1")
 
-        audio_file_path = "response.wav"
+        def on_open(self, open, **kwargs):
+            print("WebSocket connection opened.")
 
-        # Open the audio file for writing
-        with open(audio_file_path, "wb") as audio_file:
-            def on_audio_data(data, **kwargs):
-                audio_file.write(data)  # Write the audio data to the file
+        def on_audio_data(data, **kwargs):
+            audio_data.append(np.frombuffer(data, dtype=np.int16))  # Collect audio data
 
-            dg_connection.on(SpeakWebSocketEvents.AudioData, on_audio_data)
+        def on_close(self, close, **kwargs):
+            print("WebSocket connection closed.")
+            if audio_data:
+                # Play collected audio data when connection closes
+                sd.play(np.concatenate(audio_data), samplerate=48000)
+                sd.wait()
 
-            # Prepare the options
-            options = SpeakOptions(
-                model="aura-asteria-en",
-                encoding="linear16",
-                container="none",
-                sample_rate=48000,
-            )
+        dg_connection.on(SpeakWebSocketEvents.Open, on_open)
+        dg_connection.on(SpeakWebSocketEvents.AudioData, on_audio_data)
+        dg_connection.on(SpeakWebSocketEvents.Close, on_close)
 
-            if not dg_connection.start(options):
-                print("Failed to start connection")
-                return None
+        # Prepare the options
+        options = SpeakOptions(
+            model="aura-asteria-en",
+            encoding="linear16",
+            container="none",
+            sample_rate=48000,
+        )
 
-            # Send the text to Deepgram
-            dg_connection.send_text(response)
-            dg_connection.flush()
+        if not dg_connection.start(options):
+            print("Failed to start connection")
+            return None
 
-            # Wait for the audio data to finish writing
-            dg_connection.finish()
+        # Send the text to Deepgram
+        dg_connection.send_text(response)
+        dg_connection.flush()
 
-        return audio_file_path
+        # Wait for the audio data to finish writing
+        dg_connection.finish()
+
+        return "Audio generation completed."
 
     except Exception as e:
         st.write(f"An unexpected error occurred during TTS: {e}")
@@ -99,9 +110,8 @@ if audio_bytes:
         st.write("AI Response: ", api_response)
 
         # Convert AI response to speech
-        speech_file_path = text_to_speech(api_response)
-        if speech_file_path:
-            st.audio(speech_file_path)  # Play the audio
-            st.write("Audio Output: ", speech_file_path)  # Display the path for debugging
+        result = text_to_speech(api_response)
+        if result is not None:
+            st.write(result)
         else:
             st.write("Failed to generate audio.")
